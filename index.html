@@ -1,1 +1,783 @@
-FULL_UPDATED
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ping Pong Bounce Counter</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #f0f6fc;
+    --accent: #ff6b35;
+    --accent2: #58a6ff;
+    --success: #3fb950;
+    --danger: #f85149;
+    --muted: #8b949e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+    overflow-x: hidden;
+  }
+  .screen { display: none; max-width: 480px; margin: 0 auto; padding: 20px 0; }
+  .screen.active { display: block; }
+  h1 { font-size: 2rem; text-align: center; margin-bottom: 8px; color: var(--accent); }
+  h2 { font-size: 1.4rem; margin-bottom: 16px; text-align: center; }
+  p.lead { text-align: center; color: var(--muted); margin-bottom: 24px; }
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  label { display: block; margin-bottom: 8px; font-weight: 600; }
+  input[type="number"], input[type="text"], textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    color: var(--text);
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+  }
+  button, .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 8px 0;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  button:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-secondary { background: #21262d; color: var(--text); border: 1px solid #30363d; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-small { padding: 10px; font-size: 0.95rem; width: auto; display: inline-block; margin: 4px; }
+  .player-row { margin-bottom: 20px; }
+  .name-display { font-size: 1.3rem; font-weight: bold; color: var(--accent2); margin: 8px 0; }
+  #gameScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+  #gameScreen.active { display: flex; }
+  .bounce-display {
+    font-size: 5.5rem;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(255,107,53,0.5);
+    margin: 10px 0;
+    transition: transform 0.1s;
+  }
+  .bounce-display.flash { animation: flash 0.15s; }
+  @keyframes flash { 50% { transform: scale(1.1); color: #fff; } }
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+  .current-player { font-size: 1.4rem; font-weight: bold; color: var(--success); text-align: center; margin: 4px 0; }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    background: #0d1117;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 8px 0;
+    border: 1px solid #30363d;
+  }
+  .log-entry { padding: 4px 0; border-bottom: 1px solid #21262d; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  .controls button { flex: 1; min-width: 140px; }
+  .slider-container { margin: 8px 0; }
+  .slider-container label { font-size: 0.9rem; color: var(--muted); }
+  input[type="range"] { width: 100%; }
+  .summary { font-size: 1.1rem; line-height: 1.6; }
+  .winner { color: var(--success); font-weight: bold; font-size: 1.4rem; text-align: center; margin: 12px 0; }
+  .mic-status { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }
+  .scoreboard {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 8px 0;
+    font-size: 0.95rem;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .scoreboard h4 { margin-bottom: 6px; color: var(--muted); font-size: 0.85rem; }
+  .score-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .score-row.latest { color: var(--success); font-weight: 600; }
+  .turn-label { text-align: center; color: var(--muted); margin-bottom: 4px; font-size: 0.95rem; }
+  .session-total { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Welcome / Players -->
+<div id="playersScreen" class="screen active">
+  <h1>🏓 Bounce Counter</h1>
+  <p class="lead" id="leadText">Track every ping pong ball bounce with your microphone</p>
+  <div class="card">
+    <label id="langLabel">Language / 언어</label>
+    <select id="langSelect" style="width:100%;padding:14px;border-radius:12px;background:#0d1117;color:#f0f6fc;border:1px solid #30363d;margin-bottom:16px;font-size:1.1rem;">
+      <option value="en">English</option>
+      <option value="ko">한국어</option>
+    </select>
+    <label for="numPlayers" id="playersLabel">How many players?</label>
+    <input type="number" id="numPlayers" min="1" max="8" value="2" inputmode="numeric">
+    <button class="btn-primary" id="nextPlayersBtn" onclick="goToRounds()">Next →</button>
+  </div>
+</div>
+
+<!-- Rounds -->
+<div id="roundsScreen" class="screen">
+  <h2>Number of Rounds</h2>
+  <div class="card">
+    <label for="numRounds">How many rounds?</label>
+    <input type="number" id="numRounds" min="1" max="20" value="1" inputmode="numeric">
+    <button class="btn-secondary" onclick="showScreen('playersScreen')">← Back</button>
+    <button class="btn-primary" onclick="goToPrizes()">Next →</button>
+  </div>
+</div>
+
+<!-- Prizes -->
+<div id="prizesScreen" class="screen">
+  <h2>Stakes</h2>
+  <div class="card">
+    <label for="winnerPrize">Winner's Prize</label>
+    <input type="text" id="winnerPrize" placeholder="e.g. Free drinks, $20, bragging rights" value="Bragging rights">
+    <label for="loserPayment">Loser's Payment</label>
+    <input type="text" id="loserPayment" placeholder="e.g. Buy the next round, $5" value="Buy the next round">
+    <button class="btn-secondary" onclick="showScreen('roundsScreen')">← Back</button>
+    <button class="btn-primary" onclick="goToNames()">Next →</button>
+  </div>
+</div>
+
+<!-- Names -->
+<div id="namesScreen" class="screen">
+  <h2>Player Names</h2>
+  <p class="lead">Record via microphone or type</p>
+  <div id="namesContainer"></div>
+  <button class="btn-secondary" onclick="showScreen('prizesScreen')">← Back</button>
+  <button class="btn-primary" id="startGameBtn" onclick="startGame()" disabled>Start Game →</button>
+</div>
+
+<!-- Game -->
+<div id="gameScreen">
+  <div class="status-bar">
+    <span>Round <span id="roundDisplay">1</span>/<span id="totalRounds">1</span></span>
+    <span id="timerDisplay" style="font-weight:bold; color:var(--accent);">30s</span>
+    <span id="micStatus" class="mic-status">Mic off</span>
+  </div>
+  <div class="current-player" id="currentPlayerDisplay">Player</div>
+  <div class="bounce-display" id="bounceCount">0</div>
+  <div class="turn-label">This Turn</div>
+  <div class="session-total" id="sessionTotal">Session total: 0</div>
+  <div id="scoreboard" class="scoreboard">
+    <h4>Running Scores</h4>
+    <div id="scoreList">Waiting for first turn…</div>
+  </div>
+  <div class="slider-container">
+    <label>Sensitivity: <span id="sensValue">150</span> <span id="levelMeter" style="color:var(--accent2);font-weight:bold;">0</span></label>
+    <input type="range" id="sensitivity" min="100" max="200" value="150" oninput="updateSens()">
+  </div>
+  <div id="log"></div>
+  <div class="controls">
+    <button class="btn-success" id="listenBtn" onclick="toggleListening()">🎤 Start Listening</button>
+    <button class="btn-secondary" onclick="manualBounce()">+1 Manual</button>
+    <button class="btn-primary" onclick="endTurn()">End Turn</button>
+    <button class="btn-danger" onclick="endGame()">End Game</button>
+  </div>
+</div>
+
+<!-- Summary -->
+<div id="summaryScreen" class="screen">
+  <h1>Game Over</h1>
+  <div class="card summary" id="summaryContent"></div>
+  <button class="btn-primary" onclick="location.reload()">New Game</button>
+</div>
+
+<script>
+const t = (key) => {
+  const dict = {
+    en: {
+      itIs: "It is",
+      turnSayGo: "turn. Say go and your bounce count will start",
+      afterTurn: "got",
+      bounces: "bounces",
+      currentStanding: "Current standing",
+      winner: "Winner",
+      prize: "Prize",
+      loser: "Loser",
+      payment: "Payment due",
+      congratsWinner: "Congratulations! You are the bounce king! The table bows to you!",
+      congratsLoser: "Better luck next time, bounce potato. Pay up and practice!",
+      gameOver: "Game over."
+    },
+    ko: {
+      itIs: "이제",
+      turnSayGo: "차례입니다. 고라고 말하면 바운스 카운트가 시작됩니다",
+      afterTurn: "이",
+      bounces: "번 바운스했습니다",
+      currentStanding: "현재 순위",
+      winner: "승자",
+      prize: "상품",
+      loser: "패자",
+      payment: "내야 할 금액",
+      congratsWinner: "축하합니다! 당신이 바운스 왕입니다! 테이블이 당신에게 절합니다!",
+      congratsLoser: "다음에는 더 잘하세요, 바운스 감자. 돈 내고 연습하세요!",
+      gameOver: "게임 종료."
+    }
+  };
+  return (dict[state.lang] || dict.en)[key] || key;
+};
+
+const state = {
+  players: 2,
+  rounds: 1,
+  prize: '',
+  payment: '',
+  names: [],
+  recordings: [],
+  currentRound: 1,
+  currentPlayer: 0,
+  totalBounces: 0,
+  turnBounces: 0,
+  playerBounces: [],
+  log: [],
+  listening: false,
+  audioContext: null,
+  analyser: null,
+  dataArray: null,
+  lastBounce: 0,
+  threshold: 8,
+  minInterval: 100,
+  mediaStream: null,
+  turnTimer: null,
+  timeLeft: 30,
+  lang: 'en'
+};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'gameScreen') {
+    document.getElementById('gameScreen').classList.add('active');
+  } else {
+    document.getElementById('gameScreen').classList.remove('active');
+  }
+}
+
+function goToRounds() {
+  state.lang = document.getElementById('langSelect').value || 'en';
+  const confirm = state.lang === 'ko' ? '한국어로 진행합니다' : 'Continuing in English';
+  speak(confirm);
+  state.players = parseInt(document.getElementById('numPlayers').value) || 2;
+  if (state.players < 1 || state.players > 8) return alert('1–8 players');
+  showScreen('roundsScreen');
+}
+
+function goToPrizes() {
+  state.rounds = parseInt(document.getElementById('numRounds').value) || 1;
+  showScreen('prizesScreen');
+}
+
+function goToNames() {
+  state.prize = document.getElementById('winnerPrize').value || 'Bragging rights';
+  state.payment = document.getElementById('loserPayment').value || 'Buy the next round';
+  buildNamesUI();
+  showScreen('namesScreen');
+}
+
+function buildNamesUI() {
+  const cont = document.getElementById('namesContainer');
+  cont.innerHTML = '';
+  state.names = Array(state.players).fill('');
+  state.recordings = Array(state.players).fill(null);
+  for (let i = 0; i < state.players; i++) {
+    const defaultName = state.lang === 'ko' ? `플레이어 ${i+1}` : `Player ${i+1}`;
+    state.names[i] = defaultName;
+    const div = document.createElement('div');
+    div.className = 'player-row card';
+    div.innerHTML = `
+      <label>Player ${i+1}</label>
+      <div class="name-display" id="nameDisp${i}">${defaultName}</div>
+      <input type="text" id="nameInput${i}" placeholder="Type name for scoreboard" value="${defaultName}" oninput="setName(${i}, this.value)">
+      <button class="btn-secondary btn-small" onclick="recordName(${i})">🎤 Record Name</button>
+      <button class="btn-secondary btn-small" id="playBtn${i}" onclick="playRecording(${i})" style="display:none;">▶ Play</button>
+    `;
+    cont.appendChild(div);
+  }
+  checkNamesReady();
+}
+
+function setName(i, val) {
+  state.names[i] = val.trim();
+  document.getElementById('nameDisp' + i).textContent = val.trim() || '(not set)';
+  checkNamesReady();
+}
+
+function checkNamesReady() {
+  const ready = state.names.every(n => n.length > 0);
+  document.getElementById('startGameBtn').disabled = !ready;
+}
+
+let mediaRecorder = null;
+let nameRecognizer = null;
+
+async function recordName(i) {
+  try {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
+                 MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+    const chunks = [];
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRec) {
+      nameRecognizer = new SpeechRec();
+      nameRecognizer.lang = state.lang === 'ko' ? 'ko-KR' : 'en-US';
+      nameRecognizer.interimResults = false;
+      nameRecognizer.maxAlternatives = 1;
+      nameRecognizer.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        if (transcript) {
+          state.names[i] = transcript;
+          const input = document.getElementById('nameInput' + i);
+          if (input) input.value = transcript;
+          const disp = document.getElementById('nameDisp' + i);
+          if (disp) disp.textContent = transcript;
+          checkNamesReady();
+          addLog(`Transcribed name for player ${i + 1}: ${transcript}`);
+        }
+      };
+      nameRecognizer.onerror = () => {};
+      nameRecognizer.start();
+    }
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mime });
+      if (state.recordings[i]) URL.revokeObjectURL(state.recordings[i]);
+      state.recordings[i] = URL.createObjectURL(blob);
+      const playBtn = document.getElementById('playBtn' + i);
+      if (playBtn) playBtn.style.display = 'inline-block';
+      stream.getTracks().forEach(t => t.stop());
+      if (nameRecognizer) {
+        try { nameRecognizer.stop(); } catch(e) {}
+      }
+      addLog(`Name recording saved for player ${i + 1}`);
+    };
+    mediaRecorder.start();
+    document.getElementById('nameDisp' + i).textContent = 'Recording… (3s) — say your name';
+    setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+    }, 3000);
+  } catch (err) {
+    alert('Microphone access is required to record the name. Allow mic permission and try again.');
+    console.error(err);
+  }
+}
+
+function playRecording(i) {
+  if (!state.recordings[i]) return;
+  const audio = new Audio(state.recordings[i]);
+  audio.play().catch(() => {});
+}
+
+function speak(text) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) { resolve(); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = state.lang === 'ko' ? 'ko-KR' : 'en-US';
+    u.rate = 1.0;
+    u.onend = resolve;
+    u.onerror = resolve;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  });
+}
+
+function playRecordingAsync(url) {
+  return new Promise((resolve) => {
+    if (!url) { resolve(); return; }
+    const audio = new Audio(url);
+    audio.onended = resolve;
+    audio.onerror = resolve;
+    audio.play().catch(() => resolve());
+  });
+}
+
+function startGame() {
+  state.playerBounces = Array(state.players).fill(0);
+  state.currentRound = 1;
+  state.currentPlayer = 0;
+  state.totalBounces = 0;
+  state.turnBounces = 0;
+  state.log = [];
+  document.getElementById('totalRounds').textContent = state.rounds;
+  document.getElementById('roundDisplay').textContent = 1;
+  document.getElementById('log').innerHTML = '';
+  updateGameUI();
+  updateScoreboard();
+  showScreen('gameScreen');
+  announceTurn();
+  addLog(`Game started. ${state.players} players, ${state.rounds} round(s).`);
+  addLog(`Winner's prize: ${state.prize}`);
+  addLog(`Loser's payment: ${state.payment}`);
+}
+
+function updateGameUI() {
+  const name = state.names[state.currentPlayer] || (state.lang === 'ko' ? `플레이어 ${state.currentPlayer+1}` : `Player ${state.currentPlayer+1}`);
+  document.getElementById('currentPlayerDisplay').textContent = name + "'s Turn";
+  document.getElementById('bounceCount').textContent = state.turnBounces;
+  document.getElementById('sessionTotal').textContent = `Session total: ${state.totalBounces}`;
+  document.getElementById('roundDisplay').textContent = state.currentRound;
+}
+
+function updateScoreboard() {
+  const list = document.getElementById('scoreList');
+  if (!list) return;
+  if (state.totalBounces === 0 && state.turnBounces === 0) {
+    list.innerHTML = 'Waiting for first turn…';
+    return;
+  }
+  let html = '';
+  state.names.forEach((n, i) => {
+    const total = state.playerBounces[i] || 0;
+    const isCurrent = i === state.currentPlayer;
+    const displayName = n || (state.lang === 'ko' ? `플레이어 ${i+1}` : `Player ${i+1}`);
+    html += `<div class="score-row${isCurrent ? ' latest' : ''}">${displayName}: <strong>${total}</strong>${isCurrent ? ' (current)' : ''}</div>`;
+  });
+  list.innerHTML = html;
+}
+
+async function announceTurn() {
+  state.turnBounces = 0;
+  clearTurnTimer();
+  updateGameUI();
+  const idx = state.currentPlayer;
+  const name = state.names[idx] || (state.lang === 'ko' ? `플레이어 ${idx+1}` : `Player ${idx+1}`);
+  const rec = state.recordings[idx];
+  addLog(`--- ${name}'s turn (Round ${state.currentRound}) — starting from 0 ---`);
+  await speak(t('itIs'));
+  if (rec) {
+    await playRecordingAsync(rec);
+  } else {
+    await speak(name);
+  }
+  const goInstruction = state.lang === 'ko' 
+    ? '차례입니다. 고라고 말하면 바운스 카운트가 시작됩니다' 
+    : 'turn. Say go and your bounce count will start';
+  await speak(goInstruction);
+  setTimeout(() => { if (!state.listening) toggleListening(); }, 400);
+}
+
+function addLog(msg) {
+  const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.textContent = `[${time}] ${msg}`;
+  const log = document.getElementById('log');
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+  state.log.push(msg);
+}
+
+function updateSens() {
+  const slider = parseInt(document.getElementById('sensitivity').value);
+  state.threshold = Math.max(2, 25 - (slider - 150) * 0.15);
+  document.getElementById('sensValue').textContent = slider;
+}
+
+async function toggleListening() {
+  if (state.listening) {
+    stopListening();
+  } else {
+    await startListening();
+  }
+}
+
+async function startListening() {
+  try {
+    if (state.mediaStream) {
+      state.mediaStream.getTracks().forEach(t => t.stop());
+      state.mediaStream = null;
+    }
+    if (state.audioContext) {
+      await state.audioContext.close().catch(() => {});
+      state.audioContext = null;
+    }
+    const constraints = {
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      },
+      video: false
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    state.mediaStream = stream;
+    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (state.audioContext.state === 'suspended') {
+      await state.audioContext.resume();
+    }
+    const source = state.audioContext.createMediaStreamSource(stream);
+    state.analyser = state.audioContext.createAnalyser();
+    state.analyser.fftSize = 2048;
+    state.analyser.smoothingTimeConstant = 0.2;
+    source.connect(state.analyser);
+    state.dataArray = new Uint8Array(state.analyser.frequencyBinCount);
+    state.listening = true;
+    document.getElementById('listenBtn').textContent = '⏹ Stop Listening';
+    document.getElementById('listenBtn').classList.remove('btn-success');
+    document.getElementById('listenBtn').classList.add('btn-danger');
+    document.getElementById('micStatus').textContent = 'Listening…';
+    document.getElementById('micStatus').classList.add('listening');
+    startTurnTimer();
+    detectLoop();
+    addLog('Microphone listening for bounces.');
+  } catch (err) {
+    console.error(err);
+    let msg = 'Microphone error: ' + (err.message || err.name || 'Unknown');
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      msg = 'Microphone permission denied. Please allow mic access in your browser settings and reload.';
+    } else if (err.name === 'NotFoundError') {
+      msg = 'No microphone found.';
+    } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      msg += ' (Requires HTTPS)';
+    }
+    alert(msg);
+    stopListening();
+  }
+}
+
+function stopListening() {
+  state.listening = false;
+  clearTurnTimer();
+  if (state.mediaStream) {
+    state.mediaStream.getTracks().forEach(t => t.stop());
+    state.mediaStream = null;
+  }
+  if (state.audioContext) {
+    state.audioContext.close().catch(() => {});
+    state.audioContext = null;
+  }
+  document.getElementById('listenBtn').textContent = '🎤 Start Listening';
+  document.getElementById('listenBtn').classList.add('btn-success');
+  document.getElementById('listenBtn').classList.remove('btn-danger');
+  document.getElementById('micStatus').textContent = 'Mic off';
+  document.getElementById('micStatus').classList.remove('listening');
+  addLog('Stopped listening.');
+}
+
+function startTurnTimer() {
+  clearTurnTimer();
+  state.timeLeft = 30;
+  updateTimerDisplay();
+  state.turnTimer = setInterval(() => {
+    state.timeLeft--;
+    updateTimerDisplay();
+    if (state.timeLeft <= 0) {
+      clearTurnTimer();
+      addLog('Time up! Auto-ending turn.');
+      endTurn();
+    }
+  }, 1000);
+}
+
+function clearTurnTimer() {
+  if (state.turnTimer) {
+    clearInterval(state.turnTimer);
+    state.turnTimer = null;
+  }
+  state.timeLeft = 30;
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  if (el) {
+    el.textContent = state.timeLeft + 's';
+    el.style.color = state.timeLeft <= 5 ? 'var(--danger)' : 'var(--accent)';
+  }
+}
+
+function detectLoop() {
+  if (!state.listening || !state.analyser) return;
+  state.analyser.getByteTimeDomainData(state.dataArray);
+  let maxAmp = 0;
+  let highFreqEnergy = 0;
+  for (let i = 0; i < state.dataArray.length; i++) {
+    const amp = Math.abs(state.dataArray[i] - 128);
+    if (amp > maxAmp) maxAmp = amp;
+    if (i > 0) highFreqEnergy += Math.abs(state.dataArray[i] - state.dataArray[i-1]);
+  }
+  highFreqEnergy /= state.dataArray.length;
+  const meter = document.getElementById('levelMeter');
+  if (meter) meter.textContent = Math.round(maxAmp);
+  const now = Date.now();
+  const isImpact = maxAmp > state.threshold && (highFreqEnergy > 3 || maxAmp > state.threshold * 1.8);
+  if (isImpact && now - state.lastBounce > state.minInterval) {
+    state.lastBounce = now;
+    onBounceDetected();
+    addLog(`Bounce detected (amp ${Math.round(maxAmp)})`);
+  }
+  requestAnimationFrame(detectLoop);
+}
+
+function onBounceDetected() {
+  state.totalBounces++;
+  state.turnBounces++;
+  state.playerBounces[state.currentPlayer]++;
+  const el = document.getElementById('bounceCount');
+  el.textContent = state.turnBounces;
+  document.getElementById('sessionTotal').textContent = `Session total: ${state.totalBounces}`;
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+function manualBounce() {
+  onBounceDetected();
+  addLog(`Manual bounce counted for ${state.names[state.currentPlayer]}`);
+}
+
+function endTurn() {
+  clearTurnTimer();
+  if (state.listening) stopListening();
+  const idx = state.currentPlayer;
+  const name = state.names[idx] || (state.lang === 'ko' ? `플레이어 ${idx+1}` : `Player ${idx+1}`);
+  const thisTurn = state.turnBounces;
+  addLog(`${name} finished turn with ${thisTurn} bounces.`);
+  updateScoreboard();
+  const standing = state.names.map((n, i) => `${n || (state.lang==='ko' ? `플레이어 ${i+1}` : `Player ${i+1}`)} ${state.playerBounces[i]}`).join(', ');
+  const rec = state.recordings[idx];
+  (async () => {
+    if (rec) await playRecordingAsync(rec);
+    else await speak(name);
+    await speak(`${t('afterTurn')} ${thisTurn} ${t('bounces')}. ${t('currentStanding')}: ${standing}`);
+    state.turnBounces = 0;
+    state.currentPlayer++;
+    if (state.currentPlayer >= state.players) {
+      if (state.rounds > 1 && state.currentRound < state.rounds) {
+        const roundStanding = state.names.map((n, i) => `${n || (state.lang==='ko' ? `플레이어 ${i+1}` : `Player ${i+1}`)} ${state.playerBounces[i]}`).join(', ');
+        await speak(`${state.lang === 'ko' ? '라운드 종료. 현재 순위' : 'End of round. Current standings'}: ${roundStanding}`);
+      }
+      state.currentPlayer = 0;
+      state.currentRound++;
+      if (state.currentRound > state.rounds) {
+        endGame();
+        return;
+      }
+    }
+    updateGameUI();
+    announceTurn();
+  })();
+}
+
+async function endGame() {
+  stopListening();
+  const ranked = state.names.map((n, i) => ({
+    name: n || (state.lang === 'ko' ? `플레이어 ${i+1}` : `Player ${i+1}`),
+    score: state.playerBounces[i] || 0,
+    rec: state.recordings[i],
+    idx: i
+  })).sort((a, b) => a.score - b.score);
+
+  const max = Math.max(...state.playerBounces);
+  const winners = ranked.filter(p => p.score === max);
+
+  let award = `<div style="border:4px solid gold;padding:20px;background:#1a1a2e;border-radius:12px;text-align:center;">
+    <h2 style="color:gold;">🏆 ${state.lang === 'ko' ? '수상 증서' : 'AWARD CERTIFICATE'} 🏆</h2>
+    <p><strong>${t('prize')}:</strong> ${state.prize}</p>
+    <p><strong>${t('payment')}:</strong> ${state.payment}</p>
+    <h3>${state.lang === 'ko' ? '최종 결과' : 'Final Results'}</h3>
+    <ol style="text-align:left;display:inline-block;">`;
+  ranked.slice().reverse().forEach((p) => {
+    award += `<li>${p.name}: ${p.score} ${state.lang === 'ko' ? '바운스' : 'bounces'}</li>`;
+  });
+  award += `</ol></div>`;
+
+  let html = award;
+  html += `<div class="winner" style="margin-top:16px;">🏆 ${winners.map(w => w.name).join(' & ')}</div>`;
+  document.getElementById('summaryContent').innerHTML = html;
+  showScreen('summaryScreen');
+
+  await speak(t('gameOver'));
+  await speak(state.lang === 'ko' ? '최종 순위' : 'Final standings');
+  for (const p of ranked) {
+    if (p.rec) await playRecordingAsync(p.rec);
+    else await speak(p.name);
+    await speak(`${p.score} ${t('bounces')}`);
+  }
+  for (const w of winners) {
+    await speak(t('winner'));
+    if (w.rec) await playRecordingAsync(w.rec);
+    else await speak(w.name);
+    await speak(t('prize') + ' ' + state.prize);
+    await speak(t('congratsWinner'));
+  }
+  for (const p of ranked.filter(p => p.score < max)) {
+    await speak(t('loser'));
+    if (p.rec) await playRecordingAsync(p.rec);
+    else await speak(p.name);
+    await speak(t('payment') + ' ' + state.payment);
+    await speak(t('congratsLoser'));
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'celebration';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;color:white;font-size:1.5rem;text-align:center;padding:20px;';
+  overlay.innerHTML = `<div style="font-size:3rem;">🎉</div><div>${state.lang === 'ko' ? '축하합니다!' : 'Congratulations!'}</div><div style="margin-top:12px;font-size:1rem;">${winners.map(w => w.name).join(' & ')}</div>`;
+  document.body.appendChild(overlay);
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.style.cssText = `position:fixed;width:8px;height:8px;background:hsl(${Math.random()*360},80%,60%);left:${Math.random()*100}%;top:-10px;z-index:201;animation:fall 2s linear forwards;`;
+    document.body.appendChild(c);
+  }
+  const style = document.createElement('style');
+  style.textContent = '@keyframes fall { to { transform: translateY(110vh) rotate(360deg); opacity:0; } }';
+  document.head.appendChild(style);
+  setTimeout(() => {
+    overlay.remove();
+    document.querySelectorAll('[style*="fall"]').forEach(el => el.remove());
+  }, 4000);
+}
+
+// Init
+updateSens();
+</script>
+</body>
+</html>
